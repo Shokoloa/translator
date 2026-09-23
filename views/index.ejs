@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Traducteur de fichiers de langue</title>
+  <meta name="description"
+    content="Traduisez un fichier JSON ou un module JS dans plusieurs langues et récupérez un fichier par langue.">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+
+<body>
+  <div class="shell">
+
+    <header class="masthead">
+      <div class="masthead-text">
+        <h1>Un fichier en entrée, un fichier par langue en sortie.</h1>
+        <p class="lede">
+          Déposez un fichier <code>.json</code> ou un module <code>.js</code>. Les clés restent intactes,
+          seuls les textes sont traduits, et les variables comme <code>{user}</code>, <code>%s</code>
+          ou <code>&lt;@123&gt;</code> ne sont jamais touchées.
+        </p>
+      </div>
+      <figure class="sample" aria-label="Exemple de résultat">
+        <pre><code><span class="sample-lang">fr</span>  "welcome": "Bienvenue {user} !"
+<span class="sample-lang">en</span>  "welcome": "Welcome {user}!"
+<span class="sample-lang">es</span>  "welcome": "¡Bienvenido {user}!"
+<span class="sample-lang">ja</span>  "welcome": "ようこそ {user} さん！"</code></pre>
+      </figure>
+    </header>
+
+    <div class="workbench">
+
+      <form id="form" class="panel form" novalidate>
+
+        <fieldset class="group">
+          <legend>Fichier à traduire</legend>
+          <label class="drop" id="drop" for="file" data-max-kb="<%= maxFileKb %>">
+            <input class="visually-hidden" type="file" id="file" name="file"
+              accept="<%= extensions.join(',') %>,application/json,text/javascript">
+            <span class="drop-title" id="drop-title">Déposez un fichier .json ou .js ici</span>
+            <span class="drop-hint" id="drop-hint">ou cliquez pour le choisir. <%= maxFileKb %> Ko maximum.</span>
+          </label>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Langue du fichier</legend>
+          <div class="select-wrap">
+            <label class="visually-hidden" for="source">Langue du fichier</label>
+            <select id="source" name="source">
+              <option value="auto">Détecter automatiquement</option>
+              <% sourceLanguages.forEach(function (l) { %>
+                <option value="<%= l.code %>">
+                  <%= l.label %>
+                </option>
+                <% }) %>
+            </select>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Traduire vers</legend>
+
+          <div class="lang-tools">
+            <label class="visually-hidden" for="lang-filter">Filtrer les langues</label>
+            <input type="search" id="lang-filter" placeholder="Filtrer les langues" autocomplete="off">
+            <button type="button" class="link" id="select-visible">Tout sélectionner</button>
+            <button type="button" class="link" id="clear-all">Tout effacer</button>
+          </div>
+
+          <div class="lang-grid" id="lang-grid">
+            <% languages.forEach(function (l) { %>
+              <label class="lang" data-search="<%= (l.label + ' ' + l.native + ' ' + l.code).toLowerCase() %>">
+                <input type="checkbox" name="targets" value="<%= l.code %>">
+                <span class="face">
+                  <span class="native" lang="<%= l.code %>">
+                    <%= l.native %>
+                  </span>
+                  <span class="code">
+                    <%= l.code %>
+                  </span>
+                </span>
+              </label>
+              <% }) %>
+          </div>
+          <p class="hint" id="lang-count" aria-live="polite">0 langue choisie</p>
+        </fieldset>
+
+        <details class="options">
+          <summary>Options avancées</summary>
+
+          <div class="option">
+            <label for="ignoreKeys">Clés à ne pas traduire</label>
+            <input type="text" id="ignoreKeys" name="ignoreKeys" placeholder="id, icon, color" autocomplete="off">
+            <p class="hint">Séparées par des virgules. Une clé ignorée exclut aussi tout ce qu'elle contient. Un chemin
+              complet fonctionne aussi, par exemple <code>meta.version</code>.</p>
+          </div>
+
+          <fieldset class="option">
+            <legend>Nom des fichiers générés</legend>
+            <label class="radio"><input type="radio" name="naming" value="lang" checked> Code de langue seul :
+              <code>fr.json</code></label>
+            <label class="radio"><input type="radio" name="naming" value="name-lang"> Nom du fichier et langue :
+              <code>messages.fr.json</code></label>
+          </fieldset>
+        </details>
+
+        <p class="error" id="form-error" role="alert" hidden></p>
+
+        <div class="actions">
+          <button type="submit" class="btn" id="submit">Traduire le fichier</button>
+        </div>
+      </form>
+
+      <aside class="panel result" id="result" aria-label="Résultat" aria-live="polite">
+        <div id="result-body"></div>
+
+        <section class="services">
+          <h3>Services de traduction</h3>
+          <ul id="services"></ul>
+        </section>
+
+        <p class="hint retention">Les fichiers traduits restent disponibles 30 minutes, puis sont supprimés du serveur.
+        </p>
+      </aside>
+
+    </div>
+  </div>
+</body>
+
+</html>
