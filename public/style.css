@@ -584,6 +584,145 @@ input[type="text"] {
   margin-top: 0;
 }
 
+/* ---------- Projets ---------- */
+
+.shell.narrow {
+  max-width: 42rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: 0.92rem;
+}
+
+.eyebrow a,
+.page-header .eyebrow a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.eyebrow a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.page-header {
+  padding: 2.5rem 0 1.5rem;
+}
+
+.page-header h1 {
+  margin: 0 0 0.5rem;
+  font: 600 clamp(1.7rem, 4vw, 2.3rem)/1.15 var(--serif);
+}
+
+.page-header .lede {
+  max-width: 48ch;
+  color: var(--muted);
+}
+
+.empty-state {
+  padding: 1.25rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  color: var(--muted);
+}
+
+.empty-state a {
+  color: var(--accent);
+}
+
+.project-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-card {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px 10px 10px 4px;
+  background: var(--surface);
+}
+
+.project-name {
+  font: 650 1.05rem/1.3 var(--serif);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.project-name:hover {
+  color: var(--accent);
+}
+
+.project-card .hint {
+  margin-top: 0.25rem;
+}
+
+.shell.narrow .panel {
+  margin-bottom: 1.5rem;
+}
+
+.shell.narrow .panel h2 {
+  margin: 0 0 0.75rem;
+  font: 600 1.15rem/1.2 var(--serif);
+}
+
+.shell.narrow .panel>.hint {
+  margin-bottom: 0.75rem;
+}
+
+.shell.narrow .files {
+  margin-bottom: 1rem;
+}
+
+#add-keys-form textarea {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: inherit;
+  font: 0.92rem/1.5 var(--mono);
+  resize: vertical;
+}
+
+#add-keys-form .actions {
+  margin-top: 0.75rem;
+}
+
+#keys-result {
+  margin-top: 0.9rem;
+}
+
+#keys-result .notice {
+  margin-bottom: 0.6rem;
+}
+
+.save-project {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.save-project input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+
+.save-project .btn {
+  flex: none;
+  width: auto;
+}
+
 /* ---------- Écrans larges ---------- */
 
 @media (min-width: 60rem) {

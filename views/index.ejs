@@ -16,6 +16,7 @@
 
     <header class="masthead">
       <div class="masthead-text">
+        <p class="eyebrow"><a href="/projects">Voir mes projets →</a></p>
         <h1>Un fichier en entrée, un fichier par langue en sortie.</h1>
         <p class="lede">
           Déposez un fichier <code>.json</code> ou un module <code>.js</code>. Les clés restent intactes,
@@ -86,6 +87,7 @@
               <% }) %>
           </div>
           <p class="hint" id="lang-count" aria-live="polite">0 langue choisie</p>
+          <p class="hint" id="estimate" aria-live="polite" hidden></p>
         </fieldset>
 
         <details class="options">
@@ -116,6 +118,15 @@
 
       <aside class="panel result" id="result" aria-label="Résultat" aria-live="polite">
         <div id="result-body"></div>
+
+        <form id="save-project" class="save-project" hidden>
+          <label for="project-name" class="visually-hidden">Nom du projet</label>
+          <input type="text" id="project-name" placeholder="Nom du projet" maxlength="120" autocomplete="off">
+          <button type="submit" class="btn btn-small">Enregistrer comme projet</button>
+        </form>
+        <p class="error" id="save-project-error" role="alert" hidden></p>
+        <p class="hint" id="save-project-hint" hidden>Un projet garde ce fichier : vous pourrez y ajouter des clés plus
+          tard sans tout retraduire.</p>
 
         <section class="services">
           <h3>Services de traduction</h3>

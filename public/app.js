@@ -14,6 +14,11 @@
   const servicesList = $('#services');
   const filter = $('#lang-filter');
   const counter = $('#lang-count');
+  const estimateEl = $('#estimate');
+  const saveForm = $('#save-project');
+  const saveNameInput = $('#project-name');
+  const saveHint = $('#save-project-hint');
+  const saveError = $('#save-project-error');
   const langs = [...document.querySelectorAll('.lang')];
   const checkboxes = langs.map((label) => label.querySelector('input'));
 
@@ -74,12 +79,14 @@
     fileInput.files = transfer.files;
     showFormError('');
     refreshDrop();
+    updateEstimate();
   }
 
   fileInput.addEventListener('change', () => {
     const file = fileInput.files[0];
     if (file) setFile(file);
     else refreshDrop();
+    updateEstimate();
   });
 
   // Un fichier lâché à côté de la zone ne doit pas faire quitter la page.
@@ -112,15 +119,17 @@
     langs.forEach((label, i) => { if (!label.hidden) checkboxes[i].checked = true; });
     updateCount();
     savePrefs();
+    updateEstimate();
   });
 
   $('#clear-all').addEventListener('click', () => {
     checkboxes.forEach((c) => { c.checked = false; });
     updateCount();
     savePrefs();
+    updateEstimate();
   });
 
-  checkboxes.forEach((c) => c.addEventListener('change', () => { updateCount(); savePrefs(); }));
+  checkboxes.forEach((c) => c.addEventListener('change', () => { updateCount(); savePrefs(); updateEstimate(); }));
 
   // On retient les langues et la langue source d'une visite à l'autre.
   function savePrefs() {
@@ -144,9 +153,74 @@
 
   form.elements.source.addEventListener('change', savePrefs);
 
+  /* ---------- Estimation du temps ---------- */
+
+  let lastCountedKey = null;
+  let estimatedCount = null;
+  let providersState = [];
+  let estimateTimer = null;
+
+  async function refreshCount() {
+    const file = fileInput.files[0];
+    if (!file) { estimatedCount = null; lastCountedKey = null; return; }
+    const key = `${file.name}:${file.size}:${form.elements.ignoreKeys.value}`;
+    if (key === lastCountedKey) return;
+    lastCountedKey = key;
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('ignoreKeys', form.elements.ignoreKeys.value);
+      const res = await fetch('/api/estimate', { method: 'POST', body: fd });
+      const data = await res.json();
+      estimatedCount = res.ok ? data.count : null;
+    } catch {
+      estimatedCount = null;
+    }
+  }
+
+  function formatDuration(seconds) {
+    if (seconds < 45) return 'quelques secondes';
+    if (seconds < 90) return 'environ une minute';
+    return `environ ${Math.round(seconds / 60)} minutes`;
+  }
+
+  async function updateEstimateNow() {
+    await refreshCount();
+    const targetsCount = checkboxes.filter((c) => c.checked).length;
+    if (!estimatedCount || targetsCount === 0) { estimateEl.hidden = true; return; }
+
+    const total = estimatedCount * targetsCount;
+    const apiReady = providersState.some((p) => ['deepl', 'google'].includes(p.name) && p.state === 'ready');
+    const puppeteerReady = providersState.some((p) => p.name === 'puppeteer' && p.state === 'ready');
+
+    if (apiReady) {
+      estimateEl.textContent = `Estimation : ${formatDuration(Math.max(2, total * 0.05))} (via l'API).`;
+    } else if (puppeteerReady) {
+      estimateEl.textContent =
+        `Estimation : ${formatDuration(total * 3)} ` +
+        `(jusqu'à ${formatDuration(total * 15)} en cas de ralentissement — traduction via navigateur, plus lente).`;
+    } else {
+      estimateEl.textContent = 'Aucun service de traduction disponible actuellement.';
+    }
+    estimateEl.hidden = false;
+  }
+
+  function updateEstimate() {
+    clearTimeout(estimateTimer);
+    estimateTimer = setTimeout(updateEstimateNow, 300);
+  }
+
+  form.elements.ignoreKeys.addEventListener('input', updateEstimate);
+
   /* ---------- Résultat ---------- */
 
+  let currentJobId = null;
+
   function showEmpty() {
+    currentJobId = null;
+    saveForm.hidden = true;
+    saveHint.hidden = true;
+    saveError.hidden = true;
     resultBody.replaceChildren(
       h('h2', { text: 'Résultat' }),
       h('p', {
@@ -157,7 +231,9 @@
   }
 
   function showProgress(job) {
-    const percent = job.total ? Math.round((job.done / job.total) * 100) : 0;
+    saveForm.hidden = true;
+    saveHint.hidden = true;
+    const percent = job.total ? Math.min(100, Math.round((job.done / job.total) * 100)) : 0;
     let bar = $('#bar');
     if (!bar) {
       resultBody.replaceChildren(
@@ -203,6 +279,14 @@
     }
 
     resultBody.replaceChildren(...nodes);
+
+    if (job.canSaveAsProject) {
+      saveForm.hidden = false;
+      saveHint.hidden = false;
+    } else {
+      saveForm.hidden = true;
+      saveHint.hidden = true;
+    }
   }
 
   async function poll(id) {
@@ -237,6 +321,7 @@
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
 
+      currentJobId = data.id;
       showDone(await poll(data.id));
     } catch (err) {
       showEmpty();
@@ -250,15 +335,44 @@
 
   /* ---------- Services ---------- */
 
+  saveForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!currentJobId) return;
+    saveError.hidden = true;
+    const name = saveNameInput.value.trim();
+    if (!name) { saveNameInput.focus(); return; }
+
+    const button = saveForm.querySelector('button');
+    button.disabled = true;
+    button.textContent = 'Enregistrement…';
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: currentJobId, name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+      window.location.href = `/projects/${data.id}`;
+    } catch (err) {
+      saveError.textContent = err.message;
+      saveError.hidden = false;
+      button.disabled = false;
+      button.textContent = 'Enregistrer comme projet';
+    }
+  });
+
   const STATE_LABELS = { ready: 'Prêt', paused: 'En pause (quota ou clé)', off: 'Non configuré' };
 
   async function loadServices() {
     try {
       const list = await (await fetch('/api/providers')).json();
+      providersState = list;
       servicesList.replaceChildren(...list.map((p) =>
         h('li', { class: `svc-${p.state}` },
           h('span', { text: p.label }),
           h('span', { class: 'svc-state', text: STATE_LABELS[p.state] || p.state }))));
+      updateEstimate();
     } catch { /* non bloquant */ }
   }
 

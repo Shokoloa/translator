@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mes projets — Traducteur de fichiers</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+    <div class="shell narrow">
+        <header class="page-header">
+            <p class="eyebrow"><a href="/">← Nouvelle traduction</a></p>
+            <h1>Mes projets</h1>
+            <p class="lede">Un projet garde le fichier source et ses traductions : vous pouvez y ajouter des clés plus
+                tard sans tout retraduire.</p>
+        </header>
+
+        <% if (projects.length===0) { %>
+            <p class="empty-state">
+                Aucun projet pour l'instant. Traduisez d'abord un fichier depuis la
+                <a href="/">page d'accueil</a>, puis « Enregistrer comme projet ».
+            </p>
+            <% } else { %>
+                <ul class="project-list">
+                    <% projects.forEach(function (p) { %>
+                        <li class="project-card">
+                            <a href="/projects/<%= p.id %>" class="project-name">
+                                <%= p.name %>
+                            </a>
+                            <p class="hint">
+                                <%= p.ext %> · <%= p.targetCodes.length %> langue<%= p.targetCodes.length> 1 ? 's' : ''
+                                            %>
+                                            (<%= p.targetCodes.join(', ') %>)
+          </p>
+          <p class="hint">Mis à jour le <%= new Date(p.updatedAt).toLocaleString(' fr-FR') %>
+                            </p>
+                        </li>
+                        <% }) %>
+                </ul>
+                <% } %>
+    </div>
+</body>
+
+</html>

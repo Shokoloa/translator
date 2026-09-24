@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>
+        <%= meta.name %> — Traducteur de fichiers
+    </title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/project.js" defer data-id="<%= meta.id %>" data-format="<%= meta.format %>"></script>
+</head>
+
+<body>
+    <div class="shell narrow">
+        <header class="page-header">
+            <p class="eyebrow"><a href="/projects">← Mes projets</a></p>
+            <h1>
+                <%= meta.name %>
+            </h1>
+            <p class="lede">
+                Fichier <%= meta.ext %>
+                    <% if (meta.sourceCode) { %>, langue d'origine <%= meta.sourceCode %>
+                            <% } %> ·
+                                <%= meta.targetCodes.length %> langue<%= meta.targetCodes.length> 1 ? 's' : '' %> : <%=
+                                            meta.targetCodes.join(', ') %>
+    </p>
+  </header>
+
+  <div class="panel">
+    <h2>Fichiers</h2>
+    <ul class="files">
+      <li class="file">
+        <div class="file-main">
+          <span class="file-name">source<%= meta.ext %></span>
+          <span class="file-meta">Langue d' origine, toutes les clés</span>
+    </div>
+    <a class="btn btn-small" href="/api/projects/<%= meta.id %>/source" download>Télécharger</a>
+    </li>
+    <% meta.targetCodes.forEach(function (code) { %>
+        <li class="file">
+            <div class="file-main">
+                <span class="file-name">
+                    <%= code %>
+                        <%= meta.ext %>
+                </span>
+            </div>
+            <a class="btn btn-small" href="/api/projects/<%= meta.id %>/files/<%= code %>" download>Télécharger</a>
+        </li>
+        <% }) %>
+            </ul>
+            <a class="btn" href="/api/projects/<%= meta.id %>/zip">Tout télécharger (.zip)</a>
+            </div>
+
+            <div class="panel">
+                <h2>Ajouter des clés</h2>
+                <p class="hint">
+                    <% if (meta.format==='json' ) { %>
+                        Un objet JSON avec les nouvelles clés (imbrication possible), dans la langue d'origine du
+                        projet.
+                        Une clé déjà présente est refusée : modifiez le fichier directement pour la changer.
+                        <% } else { %>
+                            Un objet JSON avec les nouvelles clés, dans la langue d'origine du projet. Pour un fichier
+                            .js,
+                            seules des clés de premier niveau avec un texte simple sont acceptées (pas d'imbrication).
+                            <% } %>
+                </p>
+                <form id="add-keys-form">
+                    <label class="visually-hidden" for="snippet">Nouvelles clés (JSON)</label>
+                    <textarea id="snippet" rows="6" placeholder='{"farewell": "Au revoir"}'
+                        spellcheck="false"></textarea>
+                    <p class="error" id="keys-error" role="alert" hidden></p>
+                    <div class="actions">
+                        <button type="submit" class="btn" id="add-keys-submit">Traduire et ajouter</button>
+                    </div>
+                </form>
+                <div id="keys-result"></div>
+            </div>
+            </div>
+</body>
+
+</html>

@@ -3,6 +3,7 @@
 require('dotenv').config();
 
 const path = require('path');
+const fsp = require('fs/promises');
 const express = require('express');
 const multer = require('multer');
 const { rateLimit } = require('express-rate-limit');
@@ -12,6 +13,7 @@ const { parseFile, SUPPORTED_EXTENSIONS } = require('./lib/parsers');
 const { collectTexts } = require('./lib/translator');
 const providers = require('./lib/providers');
 const jobs = require('./lib/jobs');
+const projects = require('./lib/projects');
 const { ParseError, UserError } = require('./lib/errors');
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -47,7 +49,8 @@ const createLimiter = rateLimit({
   limit: RATE_LIMIT_PER_HOUR,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
-  handler: (req, res) => res.status(429).json({ error: `Limite atteinte : ${RATE_LIMIT_PER_HOUR} traductions par heure. Réessayez plus tard.` }),
+  handler: (req, res) =>
+    res.status(429).json({ error: `Limite atteinte : ${RATE_LIMIT_PER_HOUR} traductions par heure. Réessayez plus tard.` }),
 });
 
 app.get('/', (req, res) => {
@@ -63,10 +66,23 @@ app.get('/api/providers', (req, res) => {
   res.json(providers.status());
 });
 
+// Compte les textes à traduire sans rien traduire : sert à estimer un temps avant de lancer.
+app.post('/api/estimate', upload.single('file'), (req, res) => {
+  if (!req.file) throw new UserError('Choisissez un fichier à traduire.');
+  const ignoreKeys = String(req.body.ignoreKeys ?? '').split(/[,\n]/).map((k) => k.trim()).filter(Boolean).slice(0, 100);
+  const parsed = parseFile({ filename: req.file.originalname, buffer: req.file.buffer, ignoreKeys });
+  const { texts } = collectTexts(parsed.segments);
+  res.json({ count: texts.length, chars: texts.reduce((sum, t) => sum + t.length, 0) });
+});
+
 app.post('/api/jobs', createLimiter, upload.single('file'), (req, res) => {
   if (!req.file) throw new UserError('Choisissez un fichier à traduire.');
-  if (!providers.hasConfiguredProvider()) throw new UserError("Aucun service de traduction n'est configuré (voir le fichier .env).", 503);
-  if (jobs.runningCount() >= MAX_RUNNING_JOBS) throw new UserError('Trop de traductions en cours. Réessayez dans un instant.', 429);
+  if (!providers.hasConfiguredProvider()) {
+    throw new UserError("Aucun service de traduction n'est configuré (voir le fichier .env).", 503);
+  }
+  if (jobs.runningCount() >= MAX_RUNNING_JOBS) {
+    throw new UserError('Trop de traductions en cours. Réessayez dans un instant.', 429);
+  }
 
   const sourceCode = String(req.body.source || 'auto');
   const source = sourceCode === 'auto' ? null : getLanguage(sourceCode);
@@ -78,12 +94,18 @@ app.post('/api/jobs', createLimiter, upload.single('file'), (req, res) => {
   const targets = requested.filter((language) => !source || language.code !== source.code);
   if (targets.length === 0) throw new UserError('Choisissez au moins une langue cible différente de la langue du fichier.');
 
-  const ignoreKeys = String(req.body.ignoreKeys ?? '').split(/[,\n]/).map((key) => key.trim()).filter(Boolean).slice(0, 100);
+  const ignoreKeys = String(req.body.ignoreKeys ?? '')
+    .split(/[,\n]/)
+    .map((key) => key.trim())
+    .filter(Boolean)
+    .slice(0, 100);
   const naming = req.body.naming === 'name-lang' ? 'name-lang' : 'lang';
 
   const parsed = parseFile({ filename: req.file.originalname, buffer: req.file.buffer, ignoreKeys });
   const { texts, skipped } = collectTexts(parsed.segments);
-  if (texts.length === 0) throw new ParseError('Aucun texte à traduire dans ce fichier. Vérifiez aussi la liste des clés ignorées.');
+  if (texts.length === 0) {
+    throw new ParseError('Aucun texte à traduire dans ce fichier. Vérifiez aussi la liste des clés ignorées.');
+  }
 
   const chars = texts.reduce((sum, text) => sum + text.length, 0) * targets.length;
   if (chars > MAX_CHARS_PER_JOB) {
@@ -95,7 +117,7 @@ app.post('/api/jobs', createLimiter, upload.single('file'), (req, res) => {
     );
   }
 
-  const job = jobs.createJob({ parsed, texts, skipped, source, targets, filename: req.file.originalname, naming });
+  const job = jobs.createJob({ parsed, texts, skipped, source, targets, filename: req.file.originalname, naming, ignoreKeys });
   res.status(202).json({ id: job.id });
 });
 
@@ -127,14 +149,65 @@ app.get('/api/jobs/:id/zip', async (req, res) => {
   res.send(zip);
 });
 
+/* ---------------------------- Projets ---------------------------- */
+
+app.get('/projects', async (req, res) => {
+  res.render('projects', { projects: await projects.listProjects() });
+});
+
+app.get('/projects/:id', async (req, res) => {
+  const { meta } = await projects.getProject(req.params.id); // 404 via UserError si absent
+  res.render('project', { meta, languages: LANGUAGES });
+});
+
+app.post('/api/projects', express.json(), async (req, res) => {
+  const job = jobs.getJob(String(req.body.jobId || ''));
+  if (!job) throw new UserError("Cette traduction a expiré, impossible de l'enregistrer comme projet.", 404);
+  const meta = await projects.createFromJob(job, { name: req.body.name });
+  res.status(201).json({ id: meta.id });
+});
+
+app.post('/api/projects/:id/keys', createLimiter, express.json({ limit: '256kb' }), async (req, res) => {
+  const result = await projects.addKeys(req.params.id, String(req.body.snippet || ''));
+  res.json(result);
+});
+
+app.get('/api/projects/:id/files/:lang', async (req, res) => {
+  const { meta, files } = await projects.getProject(req.params.id);
+  const content = files[req.params.lang];
+  if (content == null) throw new UserError('Langue introuvable dans ce projet.', 404);
+  const name = `${req.params.lang}${meta.ext}`;
+  res.attachment(name);
+  res.type(meta.ext === '.json' ? 'application/json; charset=utf-8' : 'text/javascript; charset=utf-8');
+  res.send(content);
+});
+
+app.get('/api/projects/:id/source', async (req, res) => {
+  const { meta } = await projects.getProject(req.params.id);
+  const content = await fsp.readFile(projects.sourcePath(req.params.id, meta.ext), 'utf8');
+  res.attachment(`source${meta.ext}`);
+  res.send(content);
+});
+
+app.get('/api/projects/:id/zip', async (req, res) => {
+  const { meta } = await projects.getProject(req.params.id);
+  const zip = await projects.buildZip(req.params.id);
+  res.attachment(`${meta.name.replace(/[^\w.-]+/g, '_') || 'projet'}.zip`);
+  res.type('application/zip');
+  res.send(zip);
+});
+
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     const tooBig = err.code === 'LIMIT_FILE_SIZE';
-    return res.status(tooBig ? 413 : 400).json({ error: tooBig ? `Fichier trop volumineux (${MAX_FILE_KB} Ko maximum).` : "Le fichier n'a pas pu être envoyé." });
+    return res.status(tooBig ? 413 : 400).json({
+      error: tooBig ? `Fichier trop volumineux (${MAX_FILE_KB} Ko maximum).` : "Le fichier n'a pas pu être envoyé.",
+    });
   }
   if (err instanceof UserError) return res.status(err.status).json({ error: err.message });
   if (err instanceof ParseError) return res.status(422).json({ error: err.message });
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Corps de requête JSON invalide.' });
 
   console.error(err);
   res.status(500).json({ error: 'Erreur interne du serveur.' });
@@ -143,7 +216,9 @@ app.use((err, req, res, next) => {
 const server = app.listen(PORT, () => {
   console.log(`Traducteur de fichiers : http://localhost:${PORT}`);
   for (const p of providers.status()) console.log(`  ${p.label} : ${p.state === 'off' ? 'non configuré' : p.state}`);
-  if (!providers.hasConfiguredProvider()) console.warn('  Aucun service configuré : renseignez DEEPL_API_KEY et/ou GOOGLE_API_KEY dans .env (ou TRANSLATE_MOCK=1 pour tester).');
+  if (!providers.hasConfiguredProvider()) {
+    console.warn('  Aucun service configuré : renseignez DEEPL_API_KEY et/ou GOOGLE_API_KEY dans .env (ou TRANSLATE_MOCK=1 pour tester).');
+  }
 });
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
