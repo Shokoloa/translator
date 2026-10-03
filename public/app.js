@@ -230,6 +230,20 @@
     );
   }
 
+  function renderFileList(job) {
+    const nodes = [];
+    if (job.files.length) {
+      nodes.push(h('ul', { class: 'files' }, job.files.map((file) =>
+        h('li', { class: 'file' },
+          h('div', { class: 'file-main' },
+            h('span', { class: 'file-name', text: file.name }),
+            h('span', { class: 'file-meta', text: `${file.label}, ${formatSize(file.size)}, ${file.providers.join(' + ') || 'cache'}` })),
+          h('a', { class: 'btn btn-small', href: file.url, download: file.name, text: 'Télécharger' })))));
+    }
+    if (job.zipUrl) nodes.push(h('a', { class: 'btn', href: job.zipUrl, text: 'Tout télécharger (.zip)' }));
+    return nodes;
+  }
+
   function showProgress(job) {
     saveForm.hidden = true;
     saveHint.hidden = true;
@@ -240,12 +254,19 @@
         h('h2', { text: 'Traduction en cours' }),
         h('div', { class: 'bar', id: 'bar', role: 'progressbar', 'aria-label': 'Progression', 'aria-valuemin': 0, 'aria-valuemax': 100 }, h('span')),
         h('p', { class: 'muted', id: 'bar-text' }),
+        h('div', { id: 'bar-files' }),
       );
       bar = $('#bar');
     }
     bar.setAttribute('aria-valuenow', percent);
     bar.firstElementChild.style.width = `${percent}%`;
     $('#bar-text').textContent = `${job.done} sur ${job.total} textes traduits`;
+
+    // Les langues déjà terminées sont déjà téléchargeables : pas besoin d'attendre les autres,
+    // et si le serveur devait s'arrêter en cours de route, ce qui est fait n'est pas perdu.
+    const filesEl = $('#bar-files');
+    const nodes = renderFileList(job);
+    filesEl.replaceChildren(...(nodes.length ? [h('p', { class: 'hint', text: 'Déjà disponibles :' }), ...nodes] : []));
   }
 
   function showDone(job) {
@@ -257,16 +278,7 @@
         h('li', { text: e.label ? `${e.label} : ${e.message}` : e.message }))));
     }
 
-    if (job.files.length) {
-      nodes.push(h('ul', { class: 'files' }, job.files.map((file) =>
-        h('li', { class: 'file' },
-          h('div', { class: 'file-main' },
-            h('span', { class: 'file-name', text: file.name }),
-            h('span', { class: 'file-meta', text: `${file.label}, ${formatSize(file.size)}, ${file.providers.join(' + ') || 'cache'}` })),
-          h('a', { class: 'btn btn-small', href: file.url, download: file.name, text: 'Télécharger' })))));
-    }
-
-    if (job.zipUrl) nodes.push(h('a', { class: 'btn', href: job.zipUrl, text: 'Tout télécharger (.zip)' }));
+    nodes.push(...renderFileList(job));
 
     if (job.warningsTotal) {
       const more = job.warningsTotal - job.warnings.length;

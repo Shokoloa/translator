@@ -1,8 +1,9 @@
 'use strict';
 
-require('dotenv').config();
-
 const path = require('path');
+const { appDir } = require('./lib/runtime');
+require('dotenv').config({ path: path.join(appDir(), '.env') });
+
 const fsp = require('fs/promises');
 const express = require('express');
 const multer = require('multer');
@@ -150,6 +151,15 @@ app.get('/api/jobs/:id/zip', async (req, res) => {
 });
 
 /* ---------------------------- Projets ---------------------------- */
+
+app.get('/projects/new', (req, res) => {
+  res.render('new-project', {
+    languages: LANGUAGES,
+    sourceLanguages: SOURCE_LANGUAGES,
+    maxFileKb: MAX_FILE_KB,
+    extensions: SUPPORTED_EXTENSIONS,
+  });
+});
 
 app.get('/projects', async (req, res) => {
   res.render('projects', { projects: await projects.listProjects() });

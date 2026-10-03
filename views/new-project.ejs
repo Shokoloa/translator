@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nouveau projet — Traducteur de fichiers</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/new-project.js" defer></script>
+</head>
+
+<body>
+    <div class="shell">
+
+        <header class="page-header">
+            <p class="eyebrow"><a href="/projects">← Mes projets</a></p>
+            <h1>Nouveau projet</h1>
+            <p class="lede">
+                Déposez le fichier de base, choisissez les langues : il est traduit puis enregistré comme
+                projet directement. Vous pourrez revenir y ajouter des clés plus tard sans tout retraduire.
+            </p>
+        </header>
+
+        <div class="workbench">
+
+            <form id="form" class="panel form" novalidate>
+
+                <fieldset class="group">
+                    <legend>Nom du projet</legend>
+                    <label class="visually-hidden" for="project-name">Nom du projet</label>
+                    <input type="text" id="project-name" name="name" placeholder="Nom du projet" maxlength="120"
+                        autocomplete="off" required>
+                </fieldset>
+
+                <fieldset class="group">
+                    <legend>Fichier de base</legend>
+                    <label class="drop" id="drop" for="file" data-max-kb="<%= maxFileKb %>">
+                        <input class="visually-hidden" type="file" id="file" name="file"
+                            accept="<%= extensions.join(',') %>,application/json,text/javascript">
+                        <span class="drop-title" id="drop-title">Déposez un fichier .json ou .js ici</span>
+                        <span class="drop-hint" id="drop-hint">ou cliquez pour le choisir. <%= maxFileKb %> Ko
+                                maximum.</span>
+                    </label>
+                </fieldset>
+
+                <fieldset class="group">
+                    <legend>Langue du fichier</legend>
+                    <div class="select-wrap">
+                        <label class="visually-hidden" for="source">Langue du fichier</label>
+                        <select id="source" name="source">
+                            <option value="auto">Détecter automatiquement</option>
+                            <% sourceLanguages.forEach(function (l) { %>
+                                <option value="<%= l.code %>">
+                                    <%= l.label %>
+                                </option>
+                                <% }) %>
+                        </select>
+                    </div>
+                </fieldset>
+
+                <fieldset class="group">
+                    <legend>Traduire vers</legend>
+
+                    <div class="lang-tools">
+                        <label class="visually-hidden" for="lang-filter">Filtrer les langues</label>
+                        <input type="search" id="lang-filter" placeholder="Filtrer les langues" autocomplete="off">
+                        <button type="button" class="link" id="select-visible">Tout sélectionner</button>
+                        <button type="button" class="link" id="clear-all">Tout effacer</button>
+                    </div>
+
+                    <div class="lang-grid" id="lang-grid">
+                        <% languages.forEach(function (l) { %>
+                            <label class="lang"
+                                data-search="<%= (l.label + ' ' + l.native + ' ' + l.code).toLowerCase() %>">
+                                <input type="checkbox" name="targets" value="<%= l.code %>">
+                                <span class="face">
+                                    <span class="native" lang="<%= l.code %>">
+                                        <%= l.native %>
+                                    </span>
+                                    <span class="code">
+                                        <%= l.code %>
+                                    </span>
+                                </span>
+                            </label>
+                            <% }) %>
+                    </div>
+                    <p class="hint" id="lang-count" aria-live="polite">0 langue choisie</p>
+                </fieldset>
+
+                <details class="options">
+                    <summary>Options avancées</summary>
+                    <div class="option">
+                        <label for="ignoreKeys">Clés à ne pas traduire</label>
+                        <input type="text" id="ignoreKeys" name="ignoreKeys" placeholder="id, icon, color"
+                            autocomplete="off">
+                        <p class="hint">Séparées par des virgules. S'applique aussi aux clés ajoutées plus tard dans ce
+                            projet.</p>
+                    </div>
+                </details>
+
+                <p class="error" id="form-error" role="alert" hidden></p>
+
+                <div class="actions">
+                    <button type="submit" class="btn" id="submit">Créer le projet</button>
+                </div>
+            </form>
+
+            <aside class="panel result" id="result" aria-label="Résultat" aria-live="polite">
+                <div id="result-body">
+                    <h2>Résultat</h2>
+                    <p class="muted">Le projet est créé une fois le fichier traduit dans toutes les langues choisies.
+                    </p>
+                </div>
+            </aside>
+        </div>
+    </div>
+</body>
+
+</html>
