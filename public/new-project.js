@@ -44,9 +44,7 @@
         const file = fileInput.files[0];
         drop.classList.toggle('has-file', Boolean(file));
         dropTitle.textContent = file ? file.name : 'Déposez un fichier .json ou .js ici';
-        dropHint.textContent = file
-            ? 'Cliquez ou déposez un autre fichier pour le remplacer.'
-            : `ou cliquez pour le choisir. ${MAX_KB} Ko maximum.`;
+        dropHint.textContent = file ? 'Cliquez ou déposez un autre fichier pour le remplacer.' : `ou cliquez pour le choisir. ${MAX_KB} Ko maximum.`;
     }
 
     function setFile(file) {
@@ -161,10 +159,7 @@
 
             window.location.href = `/projects/${createData.id}`;
         } catch (err) {
-            resultBody.replaceChildren(
-                h('h2', { text: 'Résultat' }),
-                h('p', { class: 'muted', text: 'Le projet est créé une fois le fichier traduit dans toutes les langues choisies.' }),
-            );
+            resultBody.replaceChildren(h('h2', { text: 'Résultat' }), h('p', { class: 'muted', text: 'Le projet est créé une fois le fichier traduit dans toutes les langues choisies.' }));
             showFormError(err.message);
             submit.disabled = false;
             submit.textContent = 'Créer le projet';

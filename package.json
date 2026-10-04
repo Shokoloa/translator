@@ -18,18 +18,23 @@
   },
   "dependencies": {
     "acorn": "^8.18.0",
-    "dotenv": "^18.0.1",
+    "dotenv": "^18.0.5",
     "ejs": "^6.0.1",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
     "jszip": "^3.10.2",
-    "multer": "^2.4.0"
+    "multer": "^2.4.0",
+    "puppeteer": "^25.12.0"
   },
   "private": true,
   "engines": {
     "node": ">=18.17"
   },
   "devDependencies": {
-    "@yao-pkg/pkg": "^6.22.0"
+    "@yao-pkg/pkg": "^6.23.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "puppeteer@25.12.0": true
   }
 }

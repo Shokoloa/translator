@@ -152,6 +152,10 @@ app.get('/api/jobs/:id/zip', async (req, res) => {
 
 /* ---------------------------- Projets ---------------------------- */
 
+app.get('/projects', async (req, res) => {
+  res.render('projects', { projects: await projects.listProjects() });
+});
+
 app.get('/projects/new', (req, res) => {
   res.render('new-project', {
     languages: LANGUAGES,
@@ -159,10 +163,6 @@ app.get('/projects/new', (req, res) => {
     maxFileKb: MAX_FILE_KB,
     extensions: SUPPORTED_EXTENSIONS,
   });
-});
-
-app.get('/projects', async (req, res) => {
-  res.render('projects', { projects: await projects.listProjects() });
 });
 
 app.get('/projects/:id', async (req, res) => {
@@ -175,6 +175,43 @@ app.post('/api/projects', express.json(), async (req, res) => {
   if (!job) throw new UserError("Cette traduction a expiré, impossible de l'enregistrer comme projet.", 404);
   const meta = await projects.createFromJob(job, { name: req.body.name });
   res.status(201).json({ id: meta.id });
+});
+
+// Création directe : upload -> projet créé tout de suite -> chaque fichier cible est écrit sur
+// disque dès qu'une clé de plus est traduite (voir lib/projects.js). Suivi via /api/projects/jobs/:id.
+app.post('/api/projects/create', createLimiter, upload.single('file'), async (req, res) => {
+  if (!req.file) throw new UserError('Choisissez un fichier à traduire.');
+  if (!providers.hasConfiguredProvider()) {
+    throw new UserError("Aucun service de traduction n'est configuré (voir le fichier .env).", 503);
+  }
+
+  const sourceCode = String(req.body.source || 'auto');
+  const source = sourceCode === 'auto' ? null : getLanguage(sourceCode);
+  if (sourceCode !== 'auto' && !source) throw new UserError('Langue source inconnue.');
+
+  const codes = [...new Set([].concat(req.body.targets ?? []))];
+  const requested = codes.map(getLanguage);
+  if (requested.some((language) => !language)) throw new UserError('Langue cible inconnue.');
+  const targetCodes = requested.filter((language) => !source || language.code !== source.code).map((l) => l.code);
+  if (targetCodes.length === 0) throw new UserError('Choisissez au moins une langue cible différente de la langue du fichier.');
+
+  const ignoreKeys = String(req.body.ignoreKeys ?? '').split(/[,\n]/).map((k) => k.trim()).filter(Boolean).slice(0, 100);
+
+  const job = await projects.createProjectJob({
+    filename: req.file.originalname,
+    buffer: req.file.buffer,
+    ignoreKeys,
+    sourceCode: source?.code,
+    targetCodes,
+    name: req.body.name,
+  });
+  res.status(202).json({ id: job.id });
+});
+
+app.get('/api/projects/jobs/:id', (req, res) => {
+  const job = projects.getProjectJob(req.params.id);
+  if (!job) throw new UserError('Cette création de projet a expiré ou n\'existe pas.', 404);
+  res.json({ status: job.status, done: job.done, total: job.total, errors: job.errors, projectId: job.projectId });
 });
 
 app.post('/api/projects/:id/keys', createLimiter, express.json({ limit: '256kb' }), async (req, res) => {

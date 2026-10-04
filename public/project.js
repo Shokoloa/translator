@@ -47,17 +47,11 @@
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
 
-            const nodes = [
-                h('p', { class: 'notice', text: `Ajouté${data.addedKeys.length > 1 ? 'es' : 'e'} : ${data.addedKeys.join(', ')}.` }),
-            ];
+            const nodes = [h('p', { class: 'notice', text: `Ajouté${data.addedKeys.length > 1 ? 'es' : 'e'} : ${data.addedKeys.join(', ')}.` })];
             if (data.errors.length) {
                 nodes.push(h('ul', { class: 'issues' }, data.errors.map((e) => h('li', { text: `${e.lang} : ${e.message}` }))));
             }
-            if (data.warnings.length) {
-                nodes.push(h('details', { class: 'warnings' },
-                    h('summary', { text: `${data.warnings.length} avertissement${data.warnings.length > 1 ? 's' : ''}` }),
-                    h('ul', {}, data.warnings.map((w) => h('li', { text: `${w.lang} : ${w.message}` })))));
-            }
+            if (data.warnings.length) nodes.push(h('details', { class: 'warnings' }, h('summary', { text: `${data.warnings.length} avertissement${data.warnings.length > 1 ? 's' : ''}` }), h('ul', {}, data.warnings.map((w) => h('li', { text: `${w.lang} : ${w.message}` })))));
             result.replaceChildren(...nodes);
             textarea.value = '';
             setTimeout(() => window.location.reload(), 1200); // pour retélécharger les fichiers à jour

@@ -193,15 +193,9 @@
     const apiReady = providersState.some((p) => ['deepl', 'google'].includes(p.name) && p.state === 'ready');
     const puppeteerReady = providersState.some((p) => p.name === 'puppeteer' && p.state === 'ready');
 
-    if (apiReady) {
-      estimateEl.textContent = `Estimation : ${formatDuration(Math.max(2, total * 0.05))} (via l'API).`;
-    } else if (puppeteerReady) {
-      estimateEl.textContent =
-        `Estimation : ${formatDuration(total * 3)} ` +
-        `(jusqu'à ${formatDuration(total * 15)} en cas de ralentissement — traduction via navigateur, plus lente).`;
-    } else {
-      estimateEl.textContent = 'Aucun service de traduction disponible actuellement.';
-    }
+    if (apiReady) estimateEl.textContent = `Estimation : ${formatDuration(Math.max(2, total * 0.05))} (via l'API).`;
+    else if (puppeteerReady) estimateEl.textContent = `Estimation : ${formatDuration(total * 3)} ` + `(jusqu'à ${formatDuration(total * 15)} en cas de ralentissement — traduction via navigateur, plus lente).`;
+    else estimateEl.textContent = 'Aucun service de traduction disponible actuellement.';
     estimateEl.hidden = false;
   }
 
@@ -273,10 +267,7 @@
     const failed = job.files.length === 0;
     const nodes = [h('h2', { text: failed ? 'La traduction a échoué' : 'Fichiers traduits' })];
 
-    if (job.errors.length) {
-      nodes.push(h('ul', { class: 'issues' }, job.errors.map((e) =>
-        h('li', { text: e.label ? `${e.label} : ${e.message}` : e.message }))));
-    }
+    if (job.errors.length) nodes.push(h('ul', { class: 'issues' }, job.errors.map((e) => h('li', { text: e.label ? `${e.label} : ${e.message}` : e.message }))));
 
     nodes.push(...renderFileList(job));
 
@@ -324,9 +315,7 @@
     submit.disabled = true;
     submit.textContent = 'Traduction en cours…';
     resultBody.replaceChildren(h('h2', { text: 'Envoi du fichier' }), h('p', { class: 'muted', text: 'Analyse du fichier…' }));
-    if (window.matchMedia('(max-width: 60rem)').matches) {
-      $('#result').scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-    }
+    if (window.matchMedia('(max-width: 60rem)').matches) $('#result').scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
 
     try {
       const res = await fetch('/api/jobs', { method: 'POST', body: new FormData(form) });
