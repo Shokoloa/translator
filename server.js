@@ -16,6 +16,7 @@ const providers = require('./lib/providers');
 const jobs = require('./lib/jobs');
 const projects = require('./lib/projects');
 const { ParseError, UserError } = require('./lib/errors');
+const { LOG_PATH } = require('./lib/translationLog');
 
 const PORT = Number(process.env.PORT) || 3000;
 const MAX_FILE_KB = Number(process.env.MAX_FILE_SIZE_KB) || 512;
@@ -177,43 +178,6 @@ app.post('/api/projects', express.json(), async (req, res) => {
   res.status(201).json({ id: meta.id });
 });
 
-// Création directe : upload -> projet créé tout de suite -> chaque fichier cible est écrit sur
-// disque dès qu'une clé de plus est traduite (voir lib/projects.js). Suivi via /api/projects/jobs/:id.
-app.post('/api/projects/create', createLimiter, upload.single('file'), async (req, res) => {
-  if (!req.file) throw new UserError('Choisissez un fichier à traduire.');
-  if (!providers.hasConfiguredProvider()) {
-    throw new UserError("Aucun service de traduction n'est configuré (voir le fichier .env).", 503);
-  }
-
-  const sourceCode = String(req.body.source || 'auto');
-  const source = sourceCode === 'auto' ? null : getLanguage(sourceCode);
-  if (sourceCode !== 'auto' && !source) throw new UserError('Langue source inconnue.');
-
-  const codes = [...new Set([].concat(req.body.targets ?? []))];
-  const requested = codes.map(getLanguage);
-  if (requested.some((language) => !language)) throw new UserError('Langue cible inconnue.');
-  const targetCodes = requested.filter((language) => !source || language.code !== source.code).map((l) => l.code);
-  if (targetCodes.length === 0) throw new UserError('Choisissez au moins une langue cible différente de la langue du fichier.');
-
-  const ignoreKeys = String(req.body.ignoreKeys ?? '').split(/[,\n]/).map((k) => k.trim()).filter(Boolean).slice(0, 100);
-
-  const job = await projects.createProjectJob({
-    filename: req.file.originalname,
-    buffer: req.file.buffer,
-    ignoreKeys,
-    sourceCode: source?.code,
-    targetCodes,
-    name: req.body.name,
-  });
-  res.status(202).json({ id: job.id });
-});
-
-app.get('/api/projects/jobs/:id', (req, res) => {
-  const job = projects.getProjectJob(req.params.id);
-  if (!job) throw new UserError('Cette création de projet a expiré ou n\'existe pas.', 404);
-  res.json({ status: job.status, done: job.done, total: job.total, errors: job.errors, projectId: job.projectId });
-});
-
 app.post('/api/projects/:id/keys', createLimiter, express.json({ limit: '256kb' }), async (req, res) => {
   const result = await projects.addKeys(req.params.id, String(req.body.snippet || ''));
   res.json(result);
@@ -263,10 +227,14 @@ app.use((err, req, res, next) => {
 const server = app.listen(PORT, () => {
   console.log(`Traducteur de fichiers : http://localhost:${PORT}`);
   for (const p of providers.status()) console.log(`  ${p.label} : ${p.state === 'off' ? 'non configuré' : p.state}`);
+  console.log(`  Journal des clés non traduites : ${LOG_PATH}`);
   if (!providers.hasConfiguredProvider()) {
     console.warn('  Aucun service configuré : renseignez DEEPL_API_KEY et/ou GOOGLE_API_KEY dans .env (ou TRANSLATE_MOCK=1 pour tester).');
   }
 });
+
+// Une erreur Puppeteer tardive (navigateur fermé, page crashée…) ne doit jamais faire tomber le serveur.
+process.on('unhandledRejection', (reason) => console.error('[unhandledRejection]', reason));
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, async () => {
