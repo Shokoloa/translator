@@ -8,6 +8,7 @@ const path = require('node:path');
 
 const logPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tlog-')), 'translation-errors.log');
 process.env.TRANSLATION_LOG_PATH = logPath;
+process.env.JOBS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'jobs-'));
 process.env.DEEPL_API_KEY = 'test-key:fx';
 process.env.PROVIDER_ORDER = 'deepl';
 delete process.env.TRANSLATE_MOCK;

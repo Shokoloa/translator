@@ -16,8 +16,9 @@
             <p class="eyebrow"><a href="/projects">← Mes projets</a></p>
             <h1>Nouveau projet</h1>
             <p class="lede">
-                Déposez le fichier de base, choisissez les langues : il est traduit puis enregistré comme
-                projet directement. Vous pourrez revenir y ajouter des clés plus tard sans tout retraduire.
+                Déposez le fichier de base (par exemple fr.js) : le projet est créé tout de suite, sans rien traduire.
+                Vous choisirez les langues ensuite, depuis la page du projet, et pourrez en demander d'autres
+                plus tard ou ajouter des clés sans tout retraduire.
             </p>
         </header>
 
@@ -58,35 +59,6 @@
                     </div>
                 </fieldset>
 
-                <fieldset class="group">
-                    <legend>Traduire vers</legend>
-
-                    <div class="lang-tools">
-                        <label class="visually-hidden" for="lang-filter">Filtrer les langues</label>
-                        <input type="search" id="lang-filter" placeholder="Filtrer les langues" autocomplete="off">
-                        <button type="button" class="link" id="select-visible">Tout sélectionner</button>
-                        <button type="button" class="link" id="clear-all">Tout effacer</button>
-                    </div>
-
-                    <div class="lang-grid" id="lang-grid">
-                        <% languages.forEach(function (l) { %>
-                            <label class="lang"
-                                data-search="<%= (l.label + ' ' + l.native + ' ' + l.code).toLowerCase() %>">
-                                <input type="checkbox" name="targets" value="<%= l.code %>">
-                                <span class="face">
-                                    <span class="native" lang="<%= l.code %>">
-                                        <%= l.native %>
-                                    </span>
-                                    <span class="code">
-                                        <%= l.code %>
-                                    </span>
-                                </span>
-                            </label>
-                            <% }) %>
-                    </div>
-                    <p class="hint" id="lang-count" aria-live="polite">0 langue choisie</p>
-                </fieldset>
-
                 <details class="options">
                     <summary>Options avancées</summary>
                     <div class="option">
@@ -108,8 +80,8 @@
             <aside class="panel result" id="result" aria-label="Résultat" aria-live="polite">
                 <div id="result-body">
                     <h2>Résultat</h2>
-                    <p class="muted">Le projet est créé une fois le fichier traduit dans toutes les langues choisies.
-                    </p>
+                    <p class="muted">Le projet est créé dès l'envoi du fichier. Les traductions se lancent ensuite
+                        depuis sa page.
                 </div>
             </aside>
         </div>

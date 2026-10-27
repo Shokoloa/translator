@@ -114,7 +114,7 @@ app.post('/api/jobs', createLimiter, upload.single('file'), (req, res) => {
     throw new UserError(
       `Cette traduction représente ${chars.toLocaleString('fr-FR')} caractères ` +
       `(${targets.length} langue${targets.length > 1 ? 's' : ''}), la limite est de ${MAX_CHARS_PER_JOB.toLocaleString('fr-FR')}. ` +
-      'Réduisez le nombre de langues ou la taille du fichier.',
+      'Réduisez le nombre de langues ou la taille du fichier, ou augmentez MAX_CHARS_PER_JOB dans .env.',
       413,
     );
   }
@@ -176,6 +176,31 @@ app.post('/api/projects', express.json(), async (req, res) => {
   if (!job) throw new UserError("Cette traduction a expiré, impossible de l'enregistrer comme projet.", 404);
   const meta = await projects.createFromJob(job, { name: req.body.name });
   res.status(201).json({ id: meta.id });
+});
+
+// Création d'un projet vide : un fichier de base, une langue d'origine, aucune traduction pour l'instant.
+app.post('/api/projects/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) throw new UserError('Choisissez un fichier de base.');
+  const sourceCode = String(req.body.source || 'auto');
+  const source = sourceCode === 'auto' ? null : getLanguage(sourceCode);
+  if (sourceCode !== 'auto' && !source) throw new UserError('Langue source inconnue.');
+  const ignoreKeys = String(req.body.ignoreKeys ?? '').split(/[,\n]/).map((k) => k.trim()).filter(Boolean).slice(0, 100);
+
+  const meta = await projects.createEmpty({ name: req.body.name, filename: req.file.originalname, buffer: req.file.buffer, sourceCode: source?.code, ignoreKeys });
+  res.status(201).json({ id: meta.id });
+});
+
+// Demande de traductions pour un projet existant. Peut être rappelée pendant qu'une traduction tourne.
+app.post('/api/projects/:id/translate', createLimiter, express.json(), async (req, res) => {
+  if (!providers.hasConfiguredProvider()) {
+    throw new UserError("Aucun service de traduction n'est configuré (voir le fichier .env).", 503);
+  }
+  await projects.startTranslation(req.params.id, [].concat(req.body.targets ?? []).map(String), { maxChars: MAX_CHARS_PER_JOB });
+  res.status(202).json(await projects.getStatus(req.params.id));
+});
+
+app.get('/api/projects/:id/status', async (req, res) => {
+  res.json(await projects.getStatus(req.params.id));
 });
 
 app.post('/api/projects/:id/keys', createLimiter, express.json({ limit: '256kb' }), async (req, res) => {

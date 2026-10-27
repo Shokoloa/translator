@@ -38,7 +38,7 @@
     <a class="btn btn-small" href="/api/projects/<%= meta.id %>/source" download>Télécharger</a>
     </li>
     <% meta.targetCodes.forEach(function (code) { %>
-        <li class="file">
+        <li class="file" data-code="<%= code %>">
             <div class="file-main">
                 <span class="file-name">
                     <%= code %>
@@ -50,6 +50,45 @@
         <% }) %>
             </ul>
             <a class="btn" href="/api/projects/<%= meta.id %>/zip">Tout télécharger (.zip)</a>
+            </div>
+
+            <div class="panel">
+                <h2>Traduire vers d'autres langues</h2>
+                <p class="hint">
+                    Cochez les langues voulues. Chacune est enregistrée dès qu'elle est prête, vous pouvez en lancer
+                    d'autres pendant ce temps, ou fermer la page : la traduction continue sur le serveur.
+                </p>
+                <form id="translate-form" novalidate>
+                    <div class="lang-tools">
+                        <label class="visually-hidden" for="lang-filter">Filtrer les langues</label>
+                        <input type="search" id="lang-filter" placeholder="Filtrer les langues" autocomplete="off">
+                        <button type="button" class="link" id="select-visible">Tout sélectionner</button>
+                        <button type="button" class="link" id="clear-all">Tout effacer</button>
+                    </div>
+                    <div class="lang-grid" id="lang-grid">
+                        <% languages.forEach(function (l) { if (meta.targetCodes.includes(l.code) ||
+                            l.code===meta.sourceCode) return; %>
+                            <label class="lang" data-code="<%= l.code %>"
+                                data-search="<%= (l.label + ' ' + l.native + ' ' + l.code).toLowerCase() %>">
+                                <input type="checkbox" name="targets" value="<%= l.code %>">
+                                <span class="face">
+                                    <span class="native" lang="<%= l.code %>">
+                                        <%= l.native %>
+                                    </span>
+                                    <span class="code">
+                                        <%= l.code %>
+                                    </span>
+                                </span>
+                            </label>
+                            <% }) %>
+                    </div>
+                    <p class="hint" id="lang-count" aria-live="polite">0 langue choisie</p>
+                    <p class="error" id="translate-error" role="alert" hidden></p>
+                    <div class="actions">
+                        <button type="submit" class="btn" id="translate-submit">Traduire</button>
+                    </div>
+                </form>
+                <div id="translate-status" aria-live="polite"></div>
             </div>
 
             <div class="panel">

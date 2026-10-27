@@ -210,6 +210,13 @@
 
   let currentJobId = null;
 
+  // L'identifiant de la dernière traduction est gardé dans le navigateur : après un refresh (ou en rouvrant
+  // la page), on retrouve la traduction en cours ou son résultat, stockés sur le serveur.
+  const JOB_KEY = 'translator:job';
+  const rememberJob = (id) => { try { sessionStorage.setItem(JOB_KEY, id); localStorage.setItem(JOB_KEY, id); } catch { /* stockage indisponible */ } };
+  const recallJob = () => { try { return sessionStorage.getItem(JOB_KEY) || localStorage.getItem(JOB_KEY); } catch { return null; } };
+  const forgetJob = () => { try { sessionStorage.removeItem(JOB_KEY); localStorage.removeItem(JOB_KEY); } catch { /* idem */ } };
+
   function showEmpty() {
     currentJobId = null;
     saveForm.hidden = true;
@@ -295,7 +302,8 @@
   async function poll(id) {
     for (; ;) {
       const res = await fetch(`/api/jobs/${id}`);
-      if (!res.ok) throw new Error('Cette traduction a expiré. Relancez-la.');
+      if (res.status === 404) forgetJob();
+      if (!res.ok) throw new Error(res.status === 404 ? "Cette traduction n'existe plus (conservée 24 h sur le serveur). Relancez-la." : `Erreur ${res.status} pendant le suivi de la traduction.`);
       const job = await res.json();
       if (job.status !== 'running') return job;
       showProgress(job);
@@ -323,6 +331,7 @@
       if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
 
       currentJobId = data.id;
+      rememberJob(data.id);
       showDone(await poll(data.id));
     } catch (err) {
       showEmpty();
@@ -377,8 +386,34 @@
     } catch { /* non bloquant */ }
   }
 
+  // Reprend la dernière traduction après un refresh : en cours, on retrouve la barre de progression ; terminée, ses fichiers.
+  async function resumeJob() {
+    const id = recallJob();
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/jobs/${id}`);
+      if (!res.ok) { if (res.status === 404) forgetJob(); return; }
+      let job = await res.json();
+      currentJobId = id;
+      if (job.status === 'running') {
+        submit.disabled = true;
+        submit.textContent = 'Traduction en cours…';
+        showProgress(job);
+        job = await poll(id);
+      }
+      showDone(job);
+    } catch (err) {
+      showEmpty();
+      showFormError(err.message);
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Traduire le fichier';
+    }
+  }
+
   loadPrefs();
   refreshDrop();
   showEmpty();
   loadServices();
+  resumeJob();
 })();

@@ -15,6 +15,26 @@ npm test
 
 Sans clé, `TRANSLATE_MOCK=1` dans `.env` permet de tester l'interface (traduction factice `[fr] texte`).
 
+## Projets
+
+1. **Mes projets → Nouveau projet** : donnez un nom, déposez le fichier de base (ex. `fr.js`) et sa langue. Le projet est créé
+   tout de suite, sans rien traduire.
+2. Sur la page du projet, **Traduire vers d'autres langues** : cochez des langues et lancez. Vous pouvez relancer d'autres
+   langues pendant que ça tourne, ou fermer la page : chaque langue est écrite sur disque (`data/projects/`) dès qu'elle est
+   prête, et le suivi reprend tout seul en rechargeant la page.
+3. Plus tard : demander de nouvelles langues, ou **Ajouter des clés** (seules les nouvelles clés sont traduites).
+   L'ajout de clés est refusé tant qu'une traduction est en cours sur le projet.
+
+**Traduction depuis la page d'accueil (sans projet)** : le fichier d'origine, chaque langue terminée et l'état du travail sont
+aussi écrits dans `data/jobs/`. Un refresh de la page, ou même un redémarrage du serveur, ne fait plus rien perdre : la page
+retrouve la dernière traduction (en cours ou terminée). Si le serveur s'arrête en pleine traduction, les langues déjà finies
+restent téléchargeables et les autres sont signalées « interrompues ». Conservation : 24 h après la fin
+(`JOB_RETENTION_HOURS` pour changer). « Enregistrer comme projet » les garde sans limite de durée.
+
+Une demande est limitée à `MAX_CHARS_PER_JOB` caractères (100 000 par défaut, toutes langues cumulées). Au-delà, l'API répond
+`413` : lancez moins de langues à la fois ou augmentez cette valeur dans `.env`.
+
+
 ## Services de traduction
 
 Essayés dans l'ordre de `PROVIDER_ORDER` (défaut : `deepl,google,puppeteer`). Un service sans clé, au quota épuisé
